@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Mastitis Guard AI Edge-Node Dashboard for real-time monitoring of dairy cow udder health.">
+    <title>Mastitis Guard AI - Farmer Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Language Toggle Styles */
+        .lang-switcher {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 999px;
+            padding: 4px 6px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .lang-btn:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+        }
+        .lang-btn.active {
+            background: #00c97a;
+            color: #0a0f1e;
+        }
+        .nav-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+        <div class="nav-container">
+            <div class="brand">
+                <svg class="brand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                    </path>
+                </svg>
+                <h1>MastitisGuard AI <span class="version-badge">Edge-Node v1.0</span></h1>
+            </div>
+            <div class="nav-right">
+                <!-- Language Switcher -->
+                <div class="lang-switcher" id="langSwitcher">
+                    <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
+                    <button class="lang-btn" id="btn-hi" onclick="setLang('hi')">हि</button>
+                    <button class="lang-btn" id="btn-ml" onclick="setLang('ml')">മ</button>
+                </div>
+                <div class="status-indicator">
+                    <span class="pulse-dot"></span>
+                    <span id="bleStatus">Wand Connected (BLE)</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Container -->
+    <main class="dashboard">
+        
+        <!-- Left Column: Controls & Cow Selection -->
+        <aside class="sidebar">
+            <div class="card setup-card">
+                <h2 class="card-title">
+                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    <span id="lbl-sessionSetup">Milking Session Setup</span>
+                </h2>
+
+                <div class="form-group">
+                    <label for="cowSelect" id="lbl-cowSelect">Select Cow ID / Tag</label>
+                    <div class="select-wrapper">
+                        <select id="cowSelect">
+                            <option value="HF-Cross #302 (Holstein)">HF-Cross #302 (Holstein)</option>
+                            <option value="Sahiwal #114 (Indigenous)">Sahiwal #114 (Indigenous)</option>
+                            <option value="Gir-Mix #089 (Crossbreed)">Gir-Mix #089 (Crossbreed)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="quarterSelect" id="lbl-quarterSelect">Target Udder Quarter</label>
+                    <div class="select-wrapper">
+                        <select id="quarterSelect">
+                            <option value="Left-Front (LF)">Left-Front (LF)</option>
+                            <option value="Right-Front (RF)">Right-Front (RF)</option>
+                            <option value="Left-Rear (LR)">Left-Rear (LR)</option>
+                            <option value="Right-Rear (RR)">Right-Rear (RR)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button onclick="runInference()" class="btn-primary" id="scanBtn">
+                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <span id="lbl-scanBtn">Scan &amp; Run Inference</span>
+                </button>
+            </div>
+
+            <!-- Quick System Stats -->
+            <div class="card stats-card">
+                <h3 id="lbl-modelParams">Model Parameters</h3>
+                <ul>
+                    <li><span id="lbl-algorithm">Algorithm:</span> <strong>XGBoost (Optimized)</strong></li>
+                    <li><span id="lbl-baseline">Baseline Window:</span> <strong>7-Day Rolling</strong></li>
+                    <li><span id="lbl-sampling">Sampling Rate:</span> <strong>Real-time (Edge)</strong></li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Right / Center Column: Telemetry & Results -->
+        <section class="main-content">
+            
+            <!-- Live Sensor Telemetry Cards -->
+            <div class="telemetry-grid">
+                <div class="card telemetry-card">
+                    <p class="label" id="lbl-ec">Electrical Conductivity</p>
+                    <div class="value-wrapper">
+                        <span id="valEC" class="value">6.42</span>
+                        <span class="unit">mS/cm</span>
+                    </div>
+                    <p id="statusEC" class="status success" data-en="Normal range (4.0-7.0)" data-hi="सामान्य सीमा (4.0-7.0)" data-ml="സാധാരണ പരിധി (4.0-7.0)">Normal range (4.0-7.0)</p>
+                </div>
+
+                <div class="card telemetry-card">
+                    <p class="label" id="lbl-ph">Milk pH Level</p>
+                    <div class="value-wrapper">
+                        <span id="valPH" class="value">6.65</span>
+                        <span class="unit">pH</span>
+                    </div>
+                    <p id="statusPH" class="status success" data-en="Stable baseline" data-hi="स्थिर आधार रेखा" data-ml="സ്ഥിരമായ അടിത്തറ">Stable baseline</p>
+                </div>
+
+                <div class="card telemetry-card">
+                    <p class="label" id="lbl-temp">Thermal Gradient (&Delta;T)</p>
+                    <div class="value-wrapper">
+                        <span id="valTemp" class="value">+0.4</span>
+                        <span class="unit">&deg;C</span>
+                    </div>
+                    <p id="statusTemp" class="status success" data-en="Slight differential" data-hi="हल्का अंतर" data-ml="ചെറിയ വ്യത്യാസം">Slight differential</p>
+                </div>
+            </div>
+
+            <!-- AI Classification Risk Result Box -->
+            <div id="resultBox" class="card result-box status-healthy">
+                <div class="result-content">
+                    <div>
+                        <span id="riskBadge" class="badge">Class 0: Healthy</span>
+                        <h3 id="resultTitle">Udder Quarter Status: Normal</h3>
+                        <p id="resultDesc">No anomalous ionic or thermal spikes detected. Proceed with regular milking.</p>
+                    </div>
+                    <div class="result-icon-wrapper">
+                        <svg class="result-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Milking History Log Table -->
+            <div class="card table-card">
+                <div class="table-header">
+                    <h3 id="lbl-recentLogs">Recent Quarter Logs</h3>
+                    <span class="subtitle" id="lbl-syncStatus">Synced via BLE Gateway</span>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th id="lbl-timestamp">Timestamp</th>
+                                <th id="lbl-cowId">Cow ID</th>
+                                <th id="lbl-quarter">Quarter</th>
+                                <th>EC (mS/cm)</th>
+                                <th id="lbl-riskAssess">Risk Assessment</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTable">
+                            <tr>
+                                <td>Today, 06:15 AM</td>
+                                <td>HF-Cross #302</td>
+                                <td>Left-Front</td>
+                                <td>6.35</td>
+                                <td><span class="status-badge success-badge" id="badge-normal-1">Normal</span></td>
+                            </tr>
+                            <tr>
+                                <td>Today, 06:12 AM</td>
+                                <td>Sahiwal #114</td>
+                                <td>Right-Rear</td>
+                                <td>7.85</td>
+                                <td><span class="status-badge warning-badge" id="badge-risk-1">Moderate Risk</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Interactive Logic for Simulation + i18n -->
+    <script>
+        // ======================================================
+        // i18n Translation Dictionary
+        // ======================================================
+        const translations = {
+            en: {
+                'bleStatus':        'Wand Connected (BLE)',
+                'lbl-sessionSetup': 'Milking Session Setup',
+                'lbl-cowSelect':    'Select Cow ID / Tag',
+                'lbl-quarterSelect':'Target Udder Quarter',
+                'lbl-scanBtn':      'Scan & Run Inference',
+                'lbl-modelParams':  'Model Parameters',
+                'lbl-algorithm':    'Algorithm:',
+                'lbl-baseline':     'Baseline Window:',
+                'lbl-sampling':     'Sampling Rate:',
+                'lbl-ec':           'Electrical Conductivity',
+                'lbl-ph':           'Milk pH Level',
+                'lbl-temp':         'Thermal Gradient (ΔT)',
+                'lbl-recentLogs':   'Recent Quarter Logs',
+                'lbl-syncStatus':   'Synced via BLE Gateway',
+                'lbl-timestamp':    'Timestamp',
+                'lbl-cowId':        'Cow ID',
+                'lbl-quarter':      'Quarter',
+                'lbl-riskAssess':   'Risk Assessment',
+                // Result box - healthy state
+                'result-healthy-badge': 'Class 0: Healthy',
+                'result-healthy-title': 'Udder Quarter Status: Normal',
+                'result-healthy-desc':  'No anomalous ionic or thermal spikes detected. Proceed with regular milking.',
+                // Result box - risky state
+                'result-risk-badge': 'Class 1: Moderate Risk (Subclinical)',
+                'result-risk-title': 'Early Warning: Potential Mastitis Onset',
+                'result-risk-desc':  'Elevated electrical conductivity & thermal gradient detected. Quarantine quarter & re-test in 24h.',
+                // Status messages
+                'status-ec-normal':  'Normal range (4.0-7.0)',
+                'status-ph-normal':  'Stable baseline',
+                'status-temp-normal':'Slight differential',
+                // Table badges
+                'badge-normal':      'Normal',
+                'badge-risk':        'Moderate Risk',
+            },
+            hi: {
+                'bleStatus':        'वांड कनेक्टेड (BLE)',
+                'lbl-sessionSetup': 'दूध दुहने का सत्र सेटअप',
+                'lbl-cowSelect':    'गाय ID / टैग चुनें',
+                'lbl-quarterSelect':'लक्षित थन चतुर्थांश',
+                'lbl-scanBtn':      'स्कैन करें और अनुमान लगाएं',
+                'lbl-modelParams':  'मॉडल पैरामीटर',
+                'lbl-algorithm':    'एल्गोरिदम:',
+                'lbl-baseline':     'आधार रेखा विंडो:',
+                'lbl-sampling':     'नमूना दर:',
+                'lbl-ec':           'विद्युत चालकता',
+                'lbl-ph':           'दूध pH स्तर',
+                'lbl-temp':         'तापीय ग्रेडिएंट (ΔT)',
+                'lbl-recentLogs':   'हालिया थन लॉग',
+                'lbl-syncStatus':   'BLE गेटवे के माध्यम से सिंक किया गया',
+                'lbl-timestamp':    'समय',
+                'lbl-cowId':        'गाय ID',
+                'lbl-quarter':      'चतुर्थांश',
+                'lbl-riskAssess':   'जोखिम मूल्यांकन',
+                'result-healthy-badge': 'वर्ग 0: स्वस्थ',
+                'result-healthy-title': 'थन चतुर्थांश स्थिति: सामान्य',
+                'result-healthy-desc':  'कोई असामान्य आयनिक या तापीय उछाल नहीं मिला। नियमित दूध दुहना जारी रखें।',
+                'result-risk-badge': 'वर्ग 1: मध्यम जोखिम (उपनैदानिक)',
+                'result-risk-title': 'प्रारंभिक चेतावनी: संभावित मास्टिटिस',
+                'result-risk-desc':  'उच्च विद्युत चालकता और तापीय ग्रेडिएंट का पता चला। 24 घंटे में पुनः परीक्षण करें।',
+                'status-ec-normal':  'सामान्य सीमा (4.0-7.0)',
+                'status-ph-normal':  'स्थिर आधार रेखा',
+                'status-temp-normal':'हल्का अंतर',
+                'badge-normal':      'सामान्य',
+                'badge-risk':        'मध्यम जोखिम',
+            },
+            ml: {
+                'bleStatus':        'വാൻഡ് കണക്‌റ്റ് ആയി (BLE)',
+                'lbl-sessionSetup': 'പാൽ കറക്കൽ സെഷൻ സജ്ജീകരണം',
+                'lbl-cowSelect':    'പശുവിന്റെ ID / ടാഗ് തിരഞ്ഞെടുക്കുക',
+                'lbl-quarterSelect':'ലക്ഷ്യ അകിടിന്റെ ഭാഗം',
+                'lbl-scanBtn':      'സ്‌കാൻ ചെയ്‌ത് നിഗമനം നടത്തുക',
+                'lbl-modelParams':  'മോഡൽ പരാമീറ്ററുകൾ',
+                'lbl-algorithm':    'അൽഗോരിതം:',
+                'lbl-baseline':     'ബേസ്‌ലൈൻ വിൻഡോ:',
+                'lbl-sampling':     'സാംപ്ലിംഗ് നിരക്ക്:',
+                'lbl-ec':           'വൈദ്യുത ചാലകത',
+                'lbl-ph':           'പാലിന്റെ pH നില',
+                'lbl-temp':         'താപ ഗ്രേഡിയന്റ് (ΔT)',
+                'lbl-recentLogs':   'സമീപകാല ക്വാർട്ടർ ലോഗുകൾ',
+                'lbl-syncStatus':   'BLE ഗേറ്റ്‌വേ വഴി സമന്വയിപ്പിച്ചു',
+                'lbl-timestamp':    'സമയം',
+                'lbl-cowId':        'പശു ID',
+                'lbl-quarter':      'ക്വാർട്ടർ',
+                'lbl-riskAssess':   'അപകടസാധ്യത വിലയിരുത്തൽ',
+                'result-healthy-badge': 'ക്ലാസ് 0: ആരോഗ്യകരം',
+                'result-healthy-title': 'അകിടിന്റെ അവസ്ഥ: സാധാരണം',
+                'result-healthy-desc':  'അസ്വാഭാവിക അയോണിക് അല്ലെങ്കിൽ താപ മാറ്റങ്ങൾ കണ്ടെത്തിയില്ല. സാധാരണ പാൽ കറക്കൽ തുടരുക.',
+                'result-risk-badge': 'ക്ലാസ് 1: മിതമായ അപകടം (ഉപ-ക്ലിനിക്കൽ)',
+                'result-risk-title': 'ആദ്യ മുന്നറിയിപ്പ്: സ്തനദാഹം ആരംഭിക്കാൻ സാദ്ധ്യത',
+                'result-risk-desc':  'ഉയർന്ന വൈദ്യുത ചാലകതയും താപ ഗ്രേഡിയന്റും കണ്ടെത്തി. 24 മണിക്കൂറിനുള്ളിൽ വീണ്ടും പരിശോധിക്കുക.',
+                'status-ec-normal':  'സാധാരണ പരിധി (4.0-7.0)',
+                'status-ph-normal':  'സ്ഥിരമായ അടിത്തറ',
+                'status-temp-normal':'ചെറിയ വ്യത്യാസം',
+                'badge-normal':      'സാധാരണം',
+                'badge-risk':        'മിതമായ അപകടം',
+            }
+        };
+
+        let currentLang = 'en';
+        // Track current result state ('healthy' or 'risk') so we can retranslate result box
+        let currentResultState = 'healthy';
+
+        function setLang(lang) {
+            currentLang = lang;
+            const t = translations[lang];
+
+            // Update active button
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + lang).classList.add('active');
+
+            // Update all labelled elements
+            const ids = [
+                'bleStatus','lbl-sessionSetup','lbl-cowSelect','lbl-quarterSelect',
+                'lbl-scanBtn','lbl-modelParams','lbl-algorithm','lbl-baseline','lbl-sampling',
+                'lbl-ec','lbl-ph','lbl-temp','lbl-recentLogs','lbl-syncStatus',
+                'lbl-timestamp','lbl-cowId','lbl-quarter','lbl-riskAssess'
+            ];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && t[id]) el.innerText = t[id];
+            });
+
+            // Update result box based on current state
+            updateResultBox(currentResultState, lang);
+
+            // Update static telemetry status labels
+            document.getElementById('statusEC').innerText   = t['status-ec-normal'];
+            document.getElementById('statusPH').innerText   = t['status-ph-normal'];
+            document.getElementById('statusTemp').innerText = t['status-temp-normal'];
+
+            // Update existing table badge texts
+            document.querySelectorAll('.success-badge').forEach(el => el.innerText = t['badge-normal']);
+            document.querySelectorAll('.warning-badge').forEach(el => el.innerText = t['badge-risk']);
+        }
+
+        function updateResultBox(state, lang) {
+            const t = translations[lang || currentLang];
+            currentResultState = state;
+            if (state === 'healthy') {
+                document.getElementById('riskBadge').innerText   = t['result-healthy-badge'];
+                document.getElementById('resultTitle').innerText = t['result-healthy-title'];
+                document.getElementById('resultDesc').innerText  = t['result-healthy-desc'];
+            } else {
+                document.getElementById('riskBadge').innerText   = t['result-risk-badge'];
+                document.getElementById('resultTitle').innerText = t['result-risk-title'];
+                document.getElementById('resultDesc').innerText  = t['result-risk-desc'];
+            }
+        }
+
+        function runInference() {
+            const btn = document.querySelector('.btn-primary');
+            btn.classList.add('loading');
+            
+            setTimeout(() => {
+                const cow = document.getElementById('cowSelect').value;
+                const quarter = document.getElementById('quarterSelect').value;
+                const t = translations[currentLang];
+
+                const isRisky = Math.random() > 0.6;
+                let ec, ph, temp, boxClass;
+
+                if (isRisky) {
+                    ec = (7.5 + Math.random() * 1.5).toFixed(2);
+                    ph = (6.9 + Math.random() * 0.4).toFixed(2);
+                    temp = (+(1.2 + Math.random() * 0.8)).toFixed(1);
+                    boxClass = 'card result-box status-risk';
+                    updateResultBox('risk');
+                } else {
+                    ec = (5.8 + Math.random() * 1.0).toFixed(2);
+                    ph = (6.5 + Math.random() * 0.3).toFixed(2);
+                    temp = (+(0.1 + Math.random() * 0.5)).toFixed(1);
+                    boxClass = 'card result-box status-healthy';
+                    updateResultBox('healthy');
+                }
+
+                document.getElementById('resultBox').className = boxClass;
+
+                updateValue('valEC', ec);
+                updateValue('valPH', ph);
+                updateValue('valTemp', '+' + temp);
+
+                const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const table = document.getElementById('logTable');
+                const row = document.createElement('tr');
+                row.className = 'new-row';
+                const badgeClass = isRisky ? 'warning-badge' : 'success-badge';
+                const badgeText  = isRisky ? t['badge-risk'] : t['badge-normal'];
+                row.innerHTML = `
+                    <td>Today, ${now}</td>
+                    <td>${cow.split(' ')[0]}</td>
+                    <td>${quarter.split(' ')[0]}</td>
+                    <td>${ec}</td>
+                    <td><span class="status-badge ${badgeClass}">${badgeText}</span></td>
+                `;
+                table.insertBefore(row, table.firstChild);
+                setTimeout(() => row.classList.remove('new-row'), 1000);
+                
+                btn.classList.remove('loading');
+            }, 800);
+        }
+
+        function updateValue(id, newValue) {
+            const el = document.getElementById(id);
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(-10px)';
+            setTimeout(() => {
+                el.innerText = newValue;
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 300);
+        }
+    </script>
+</body>
+</html>
